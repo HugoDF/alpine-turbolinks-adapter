@@ -22,11 +22,20 @@ class Bridge {
     }
 
     this.alpine = reference;
+  } // Tag cloaked elements so we can cloak them again before caching
+
+
+  tagCloakedElements(node) {
+    node.querySelectorAll('[x-cloak]').forEach(el => {
+      el.setAttribute('data-alpine-was-cloaked', '');
+    });
   }
 
   init() {
-    // Once Turbolinks finished is magic, we initialise Alpine on the new page
+    // Tag all cloaked elements on page load.
+    this.tagCloakedElements(document.body); // Once Turbolinks finished is magic, we initialise Alpine on the new page
     // and resume the observer
+
     document.addEventListener('turbolinks:load', () => {
       this.alpine.discoverUninitializedComponents(el => {
         this.alpine.initializeComponent(el);
@@ -46,6 +55,11 @@ class Bridge {
           el.remove();
         }
       });
+    }); // When we get a new document body tag any cloaked elements so we can cloak
+    // them again before caching.
+
+    document.addEventListener('turbolinks:before-render', event => {
+      this.tagCloakedElements(event.data.newBody);
     }); // Pause the the mutation observer to avoid data races, it will be resumed by the turbolinks:load event.
     // We mark as `data-alpine-generated-m` all elements that are crated by an Alpine templating directives.
     // The reason is that turbolinks caches pages using cloneNode which removes listeners and custom properties
@@ -73,6 +87,13 @@ class Bridge {
             ifEl.setAttribute('data-alpine-generated-me', true);
           }
         }
+      });
+    }); // Cloak any elements again that were tagged when the page was loaded
+
+    document.addEventListener('turbolinks:before-cache', () => {
+      document.body.querySelectorAll('[data-alpine-was-cloaked]').forEach(el => {
+        el.setAttribute('x-cloak', '');
+        el.removeAttribute('data-alpine-was-cloaked');
       });
     });
   }

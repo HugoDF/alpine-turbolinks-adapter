@@ -12,7 +12,17 @@ export default class Bridge {
     this.alpine = reference
   }
 
+  // Tag cloaked elements so we can cloak them again before caching
+  tagCloakedElements (node) {
+    node.querySelectorAll('[x-cloak]').forEach((el) => {
+      el.setAttribute('data-alpine-was-cloaked', '')
+    })
+  }
+
   init () {
+    // Tag all cloaked elements on page load.
+    this.tagCloakedElements(document.body)
+
     // Once Turbolinks finished is magic, we initialise Alpine on the new page
     // and resume the observer
     document.addEventListener('turbolinks:load', () => {
@@ -35,6 +45,12 @@ export default class Bridge {
           el.remove()
         }
       })
+    })
+
+    // When we get a new document body tag any cloaked elements so we can cloak
+    // them again before caching.
+    document.addEventListener('turbolinks:before-render', (event) => {
+      this.tagCloakedElements(event.data.newBody)
     })
 
     // Pause the the mutation observer to avoid data races, it will be resumed by the turbolinks:load event.
@@ -62,6 +78,14 @@ export default class Bridge {
             ifEl.setAttribute('data-alpine-generated-me', true)
           }
         }
+      })
+    })
+
+    // Cloak any elements again that were tagged when the page was loaded
+    document.addEventListener('turbolinks:before-cache', () => {
+      document.body.querySelectorAll('[data-alpine-was-cloaked]').forEach((el) => {
+        el.setAttribute('x-cloak', '')
+        el.removeAttribute('data-alpine-was-cloaked')
       })
     })
   }
