@@ -8,3 +8,11 @@ export function isValidVersion (required, current) {
   }
   return true
 }
+
+export function domReady (callback) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', callback)
+  } else {
+    callback()
+  }
+}

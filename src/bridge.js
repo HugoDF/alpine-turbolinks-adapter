@@ -2,21 +2,11 @@ import { isValidVersion } from './utils'
 
 export default class Bridge {
   init () {
-    const initAlpine = window.deferLoadingAlpine || ((callback) => callback())
-    window.deferLoadingAlpine = (callback) => {
-      this.setAlpine(window.Alpine) // eslint-disable-line no-undef
+    this.setAlpine(window.Alpine) // eslint-disable-line no-undef
 
-      document.addEventListener('turbolinks:load', () => {
-        // Tag all cloaked elements on first page load.
-        this.tagCloakedElements(document.body)
+    this.tagCloakedElements(document.body)
 
-        this.configureEventHandlers()
-
-        // Alpine needs to wait until after page load because it immediatly
-        // initializes components, which will remove the x-cloak attribute.
-        initAlpine(callback)
-      }, { once: true })
-    }
+    this.configureEventHandlers()
   }
 
   setAlpine (reference) {
@@ -60,6 +50,13 @@ export default class Bridge {
     })
   }
 
+  restoreCloakAttributes () {
+    document.body.querySelectorAll('[data-alpine-was-cloaked]').forEach((el) => {
+      el.setAttribute('x-cloak', '')
+      el.removeAttribute('data-alpine-was-cloaked')
+    })
+  }
+
   configureEventHandlers () {
     document.addEventListener('turbolinks:load', () => {
       // Once Turbolinks finished is magic, we initialise Alpine on the new page
@@ -91,17 +88,14 @@ export default class Bridge {
     // of a better option.
     // Note, we can't remove any Alpine generated element as yet because if they live inside an element
     // marked as data-turbolinks-permanent they need to be copied into the next page.
-    // The coping process happens somewhere between before-cache and before-render.
+    // The copying process happens somewhere between before-cache and before-render.
     document.addEventListener('turbolinks:before-cache', () => {
       this.alpine.pauseMutationObserver = true
 
       this.tagAlpineGeneratedElements(document.body)
 
       // Cloak any elements again that were tagged when the page was loaded
-      document.body.querySelectorAll('[data-alpine-was-cloaked]').forEach((el) => {
-        el.setAttribute('x-cloak', '')
-        el.removeAttribute('data-alpine-was-cloaked')
-      })
+      this.restoreCloakAttributes()
     })
   }
 }
